@@ -1,0 +1,175 @@
+import React, { useState, useRef, useEffect } from 'react';
+import './ChatBot.css';
+
+interface Message {
+  role: 'user' | 'assistant';
+  content: string;
+  sources?: SearchResult[];
+}
+
+interface SearchResult {
+  section: string;
+  title: string;
+  law: string;
+  content: string;
+  relevance_score: number;
+}
+
+interface ChatResponse {
+  response: string;
+  sources: SearchResult[];
+}
+
+const ChatBot: React.FC = () => {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const handleSendMessage = async () => {
+    if (!input.trim()) return;
+
+    const userMessage: Message = { role: 'user', content: input };
+    setMessages(prev => [...prev, userMessage]);
+    setInput('');
+    setLoading(true);
+
+    try {
+      const response = await fetch('http://localhost:8000/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: input,
+          conversation_history: messages,
+          law_context: detectLawContext(input)
+        })
+      });
+
+      if (!response.ok) throw new Error('API request failed');
+
+      const data: ChatResponse = await response.json();
+      const assistantMessage: Message = {
+        role: 'assistant',
+        content: data.response,
+        sources: data.sources
+      };
+      setMessages(prev => [...prev, assistantMessage]);
+    } catch (error) {
+      const errorMessage: Message = {
+        role: 'assistant',
+        content: 'Error communicating with server. Please try again.'
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const detectLawContext = (query: string): string => {
+    const query_lower = query.toLowerCase();
+    
+    const lawKeywords = {
+      CNS: ['narcotic', 'drug', 'heroin', 'cannabis', 'trafficking', 'possession'],
+      PPC: ['penal code', 'murder', 'theft', 'assault'],
+      POLICE: ['police rules', 'officer', 'duty'],
+      AMLA: ['money laundering', 'suspicious'],
+      ANF: ['anti narcotics', 'anf'],
+      QES: ['evidence', 'witness']
+    };
+
+    const counts = Object.entries(lawKeywords).reduce((acc, [law, keywords]) => {
+      acc[law] = keywords.filter(kw => query_lower.includes(kw)).length;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const maxCount = Math.max(...Object.values(counts));
+    return maxCount > 0 ? Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b) : 'GENERAL';
+  };
+
+  const handleClearChat = () => {
+    setMessages([]);
+  };
+
+  return (
+    <div className="chatbot-container">
+      <div className="chatbot-header">
+        <h1>Legal Document Chatbot</h1>
+        <button className="clear-btn" onClick={handleClearChat} disabled={loading}>
+          Clear Chat
+        </button>
+      </div>
+
+      <div className="messages-container">
+        {messages.length === 0 && (
+          <div className="welcome-message">
+            <p>Ask questions about Pakistani law:</p>
+            <ul>
+              <li>Pakistan Penal Code (PPC)</li>
+              <li>Control of Narcotic Substances Act (CNSA)</li>
+              <li>Punjab Police Rules, 1934</li>
+              <li>Anti-Money Laundering Act (AMLA)</li>
+              <li>Anti Narcotics Force Act</li>
+              <li>Qanun-e-Shahadat Order</li>
+            </ul>
+          </div>
+        )}
+
+        {messages.map((msg, idx) => (
+          <div key={idx} className={`message ${msg.role}`}>
+            <div className="message-content">
+              {msg.content}
+            </div>
+            {msg.sources && msg.sources.length > 0 && (
+              <div className="sources">
+                <details>
+                  <summary>Sources ({msg.sources.length})</summary>
+                  {msg.sources.map((src, srcIdx) => (
+                    <div key={srcIdx} className="source-item">
+                      <strong>{src.law}</strong>
+                      <p>Section {src.section}: {src.title}</p>
+                      <small>Score: {src.relevance_score.toFixed(3)}</small>
+                    </div>
+                  ))}
+                </details>
+              </div>
+            )}
+          </div>
+        ))}
+
+        {loading && (
+          <div className="message assistant">
+            <div className="typing-indicator">
+              <span></span><span></span><span></span>
+            </div>
+          </div>
+        )}
+
+        <div ref={messagesEndRef} />
+      </div>
+
+      <div className="input-container">
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+          placeholder="Ask a legal question..."
+          disabled={loading}
+        />
+        <button onClick={handleSendMessage} disabled={loading || !input.trim()}>
+          Send
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default ChatBot;
