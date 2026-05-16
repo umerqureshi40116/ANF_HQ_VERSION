@@ -1,369 +1,350 @@
-# import json
-# import os
-# import shutil
-# import re
-# from langchain.schema import Document
-# from langchain.text_splitter import RecursiveCharacterTextSplitter
-# from langchain_chroma import Chroma
-# from langchain_huggingface import HuggingFaceEmbeddings
-
-# # ======================================================================
-# # CONFIGURATION
-# # ======================================================================
-
-# JSON_FILES = [
-#     r"D:\Anti Narcotics Force\Edubot_old_laptop(working PPC Pydantic)\data\books\ppc_full_sections_left_superscript.json",
-#     r"D:\Anti Narcotics Force\Edubot_old_laptop(working PPC Pydantic)\data\books\cnsa_sections_extracted.json"
-#     r"D:\Anti Narcotics Force\Edubot_old_laptop(working PPC Pydantic)\data\books\amla_2010_final_structured.json"
-#     r"D:\Anti Narcotics Force\Edubot_old_laptop(working PPC Pydantic)\data\books\ANF_ACT_1997.json"
-#     r"D:\Anti Narcotics Force\Edubot_old_laptop(working PPC Pydantic)\data\books\punjab_police_rules_extracted.json"
-#     r"D:\Anti Narcotics Force\Edubot_old_laptop(working PPC Pydantic)\data\books\qanun_e_shahadat_sections_extracted_fixed.json"
-
-# ]
-
-# CHROMA_PATH = r"D:\Anti Narcotics Force\Edubot_old_laptop(working PPC Pydantic)\data\books\chroma"
-# COLLECTION_NAME = "legal_sections"
-
-# # ======================================================================
-# # TEXT CLEANING FUNCTION
-# # ======================================================================
-
-# def clean_legal_text(text: str) -> str:
-#     """Clean and normalize legal text for consistent embeddings."""
-#     if not text:
-#         return ""
-#     text = re.sub(r'\s+', ' ', text)
-#     text = text.replace('\n', ' ').replace('\r', ' ').replace('\t', ' ')
-#     text = ' '.join(text.split())
-#     text = re.sub(r'\s+([.,;:!?])', r'\1', text)
-#     text = re.sub(r'([.,;:!?])([A-Za-z])', r'\1 \2', text)
-#     return text.strip()
-
-# # ======================================================================
-# # LOAD & COMBINE JSON FILES
-# # ======================================================================
-
-# all_documents = []
-
-# for path in JSON_FILES:
-#     print(f"\n📂 Loading JSON file: {os.path.basename(path)}")
-#     if not os.path.exists(path):
-#         print(f"❌ File not found: {path}")
-#         continue
-
-#     with open(path, "r", encoding="utf-8") as f:
-#         data = json.load(f)
-
-#     law_name = data.get("law_name", "Unknown Law")
-#     sections = data.get("sections", [])
-#     print(f"✅ Loaded {len(sections)} sections from {law_name}")
-
-#     for s in sections:
-#         section_num = s.get("section", "Unknown")
-#         title = clean_legal_text(s.get("title", ""))
-#         body = clean_legal_text(s.get("body", ""))
-#         page = s.get("page", -1)
-#         chapter = s.get("chapter", "")
-
-#         if len(body) < 20:
-#             continue
-
-#         full_content = f"Section {section_num}: {title}\n\n{body}\n\nReference: {law_name}"
-#         doc = Document(
-#             page_content=full_content,
-#             metadata={
-#                 "section": str(section_num),
-#                 "title": title,
-#                 "body": body,
-#                 "page": int(page) if isinstance(page, int) else -1,
-#                 "chapter": chapter,
-#                 "source": law_name,
-#                 "law_name": law_name
-#             }
-#         )
-#         all_documents.append(doc)
-
-# print(f"\n✅ Total combined documents: {len(all_documents)}")
-
-# # ======================================================================
-# # SPLIT DOCUMENTS INTO CHUNKS
-# # ======================================================================
-
-# print("\n✂️ Splitting documents into chunks...")
-# splitter = RecursiveCharacterTextSplitter(
-#     chunk_size=800,
-#     chunk_overlap=150,
-#     add_start_index=True,
-#     separators=["\n\n", "\n", ". ", " ", ""],
-# )
-
-# chunks = splitter.split_documents(all_documents)
-# print(f"✅ Total chunks created: {len(chunks)}")
-
-# # ======================================================================
-# # RESET EXISTING CHROMA DATABASE
-# # ======================================================================
-
-# if os.path.exists(CHROMA_PATH):
-#     shutil.rmtree(CHROMA_PATH)
-#     print("🗑️ Removed old Chroma DB")
-
-# # ======================================================================
-# # INITIALIZE EMBEDDINGS
-# # ======================================================================
-
-# print("\n🤖 Initializing embedding model...")
-# embeddings = HuggingFaceEmbeddings(
-#     model_name="sentence-transformers/all-mpnet-base-v2",
-#     model_kwargs={'device': 'cpu'},
-#     encode_kwargs={'normalize_embeddings': True}
-# )
-
-# # ======================================================================
-# # SAVE TO CHROMA DATABASE
-# # ======================================================================
-
-# print("\n💾 Saving to Chroma database...")
-# db = Chroma.from_documents(
-#     documents=chunks,
-#     embedding=embeddings,
-#     persist_directory=CHROMA_PATH,
-#     collection_name=COLLECTION_NAME
-# )
-
-# print(f"✅ Saved {len(chunks)} chunks to Chroma DB")
-# print(f"📁 Database location: {CHROMA_PATH}")
-
-# # ======================================================================
-# # VERIFY STORED DATA
-# # ======================================================================
-
-# print("\n🔍 Verifying stored chunks...")
-
-# # Reopen the same DB with the SAME embeddings
-# db_verify = Chroma(
-#     persist_directory=CHROMA_PATH,
-#     embedding_function=embeddings,
-#     collection_name=COLLECTION_NAME
-# )
-
-# count = db_verify._collection.count()
-# print(f"✅ Verified stored chunks: {count}")
-
-# # Show a few stored examples
-# if count > 0:
-#     docs = db_verify.get(limit=5)
-#     print("\n📚 Sample stored metadata:")
-#     for meta in docs['metadatas']:
-#         print(f"• {meta.get('law_name')} → Section {meta.get('section')}")
-# else:
-#     print("⚠️ No chunks found — check file paths or embedding model setup.")
-
-# print("\n🎯 Process complete.")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-import json
-import os
-import shutil
-import re
-from langchain.schema import Document
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+import streamlit as st
 from langchain_chroma import Chroma
+from langchain_groq import ChatGroq
 from langchain_huggingface import HuggingFaceEmbeddings
+from langchain.prompts import ChatPromptTemplate
+from langchain.schema import Document
+from dotenv import load_dotenv
+import os
+import re
+from typing import List, Tuple, Optional, Dict
 
-# ======================================================================
-# CONFIGURATION
-# ======================================================================
+load_dotenv()
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
-JSON_FILES = [
-    r"D:\UMER_ANF\Edubot_old_laptop\data\books\ppc_full_sections_left_superscript.json",
-    r"D:\UMER_ANF\Edubot_old_laptop\data\books\cnsa_sections_extracted.json",
-    r"D:\UMER_ANF\Edubot_old_laptop\data\books\amla_2010_final_structured.json",
-    r"D:\UMER_ANF\Edubot_old_laptop\data\books\ANF_ACT_1997.json",
-    r"D:\UMER_ANF\Edubot_old_laptop\data\books\punjab_police_rules_extracted.json",
-    r"D:\UMER_ANF\Edubot_old_laptop\data\books\qanun_e_shahadat_sections_extracted_fixed.json"
-]
+if not GROQ_API_KEY:
+    st.error("GROQ_API_KEY not found in environment variables")
+    st.stop()
 
-CHROMA_PATH = r"D:\UMER_ANF\Edubot_old_laptop\data\books\chroma"
-COLLECTION_NAME = "legal_sections"
+CHROMA_PATH = os.getenv("CHROMA_PATH", "./data/chroma")
 
-# ======================================================================
-# TEXT CLEANING
-# ======================================================================
-
-def clean_legal_text(text: str) -> str:
-    if not text:
-        return ""
-    text = re.sub(r'\s+', ' ', text)
-    text = text.replace('\n', ' ').replace('\r', ' ').replace('\t', ' ')
-    text = ' '.join(text.split())
-    text = re.sub(r'\s+([.,;:!?])', r'\1', text)
-    text = re.sub(r'([.,;:!?])([A-Za-z])', r'\1 \2', text)
-    return text.strip()
-
-# ======================================================================
-# FLEXIBLE SECTION EXTRACTOR
-# ======================================================================
-
-def extract_sections_from_json(data: dict):
-    """Handle both 'sections' and nested 'volumes' structures."""
-    sections = []
-
-    if "sections" in data:
-        sections.extend(data["sections"])
-
-    if "volumes" in data and isinstance(data["volumes"], dict):
-        for vol_name, vol_sections in data["volumes"].items():
-            for sec in vol_sections:
-                sec["volume"] = vol_name
-                sections.append(sec)
-
-    return sections
-
-# ======================================================================
-# MAIN COMBINATION LOGIC
-# ======================================================================
-
-all_documents = []
-
-for path in JSON_FILES:
-    print(f"\n📂 Loading JSON file: {os.path.basename(path)}")
-    if not os.path.exists(path):
-        print(f"❌ File not found: {path}")
-        continue
-
-    with open(path, "r", encoding="utf-8") as f:
-        data = json.load(f)
-
-    law_name = data.get("law_name", "Unknown Law")
-    sections = extract_sections_from_json(data)
-    print(f"✅ Loaded {len(sections)} sections from {law_name}")
-
-    for s in sections:
-        # Flexible section capture (handles Rule/Section/Article/1.1 etc.)
-        raw_sec = str(s.get("section", "")).strip()
-        sec_match = re.match(r'(?:Section|Article|Rule)?\s*([\dA-Za-z.\-() ]+)', raw_sec)
-        section_num = sec_match.group(1).strip() if sec_match else raw_sec
-
-        title = clean_legal_text(s.get("title", ""))
-        body = clean_legal_text(s.get("body", ""))
-        chapter = s.get("chapter", "") or s.get("part", "")
-        volume = s.get("volume", "")
-        page = s.get("page", -1)
-
-        if len(body) < 20:  # lowered threshold
-            continue
-
-        # Construct a descriptive combined text
-        section_label = f"Section {section_num}".strip()
-        if "Rule" in raw_sec or "rule" in raw_sec.lower():
-            section_label = f"Rule {section_num}"
-        if "Article" in raw_sec or "article" in raw_sec.lower():
-            section_label = f"Article {section_num}"
-
-        full_content = f"{section_label}: {title}\n\n{body}\n\nReference: {law_name}"
-
-        doc = Document(
-            page_content=full_content,
-            metadata={
-                "section": section_num,
-                "title": title,
-                "body": body,
-                "chapter": chapter,
-                "volume": volume,
-                "page": int(page) if isinstance(page, int) else -1,
-                "law_name": law_name,
-                "source": law_name
-            }
+class LegalChatbot:
+    def __init__(self, chroma_path: str):
+        self.db = self._load_database(chroma_path)
+        self.llm = self._load_llm()
+        self.law_keywords = self._init_law_keywords()
+        self.query_enhancements = self._init_query_enhancements()
+    
+    @staticmethod
+    @st.cache_resource
+    def _load_database(chroma_path: str) -> Chroma:
+        embeddings = HuggingFaceEmbeddings(
+            model_name="sentence-transformers/all-mpnet-base-v2",
+            model_kwargs={"device": "cpu"},
+            encode_kwargs={"normalize_embeddings": True}
         )
-        all_documents.append(doc)
+        return Chroma(
+            persist_directory=chroma_path,
+            embedding_function=embeddings,
+            collection_name="legal_sections"
+        )
+    
+    @staticmethod
+    @st.cache_resource
+    def _load_llm() -> ChatGroq:
+        return ChatGroq(
+            api_key=GROQ_API_KEY,
+            model="llama-3.3-70b-versatile",
+            temperature=0.1
+        )
+    
+    @staticmethod
+    def _init_law_keywords() -> Dict[str, List[str]]:
+        return {
+            "CNS": [
+                "narcotic", "drug", "opium", "heroin", "cannabis",
+                "controlled substance", "psychotropic", "trafficking",
+                "cultivation", "possession", "cocaine", "hashish"
+            ],
+            "PPC": [
+                "penal code", "murder", "theft", "assault",
+                "culpable homicide", "hurt", "kidnapping",
+                "criminal conspiracy", "defamation"
+            ],
+            "POLICE": [
+                "police rules", "officer", "duty", "patrol",
+                "jail", "prisoner", "gazetted"
+            ],
+            "AMLA": [
+                "money laundering", "anti-money laundering",
+                "proceeds of crime", "suspicious transaction"
+            ],
+            "ANF": [
+                "anti narcotics force", "anf officer", "narcotics operations"
+            ],
+            "QES": [
+                "evidence", "testimony", "witness", "proof",
+                "qanun-e-shahadat"
+            ]
+        }
+    
+    @staticmethod
+    def _init_query_enhancements() -> Dict[str, str]:
+        return {
+            "heroin": "heroin diacetylmorphine opium derivative possession trafficking",
+            "trafficking": "trafficking transport export import section 9 penalty",
+            "possession": "possession narcotic substance section 6 imprisonment",
+            "cultivation": "cultivation cannabis opium poppy section 4 prohibition",
+            "manufacture": "manufacture production substance section 10 equipment",
+            "death penalty": "death penalty life imprisonment trafficking kilograms",
+            "bail": "bail section 51 special court no bail death penalty",
+            "arrest": "arrest warrant search seizure section 20 authority",
+            "treatment": "treatment rehabilitation addict centers registration",
+            "money laundering": "money laundering proceeds crime financial monitoring"
+        }
+    
+    def detect_law_context(self, query: str) -> str:
+        query_lower = query.lower()
+        counts = {}
+        
+        for law, keywords in self.law_keywords.items():
+            counts[law] = sum(1 for kw in keywords if kw in query_lower)
+        
+        max_count = max(counts.values())
+        if max_count == 0:
+            return "GENERAL"
+        
+        return max(counts, key=counts.get)
+    
+    def extract_section_number(self, query: str) -> Optional[str]:
+        patterns = [
+            r"\bsection\s+(\d+\.\d+[A-Z]?)\b",
+            r"\bsec\.?\s+(\d+\.\d+[A-Z]?)\b",
+            r"\brule\s+(\d+\.\d+[A-Z]?)\b",
+            r"\bsection\s+(\d+[A-Z]?)\b",
+            r"\brule\s+(\d+[A-Z]?)\b",
+            r"\barticle\s+(\d+[A-Z]?)\b",
+        ]
+        
+        query_lower = query.lower()
+        for pattern in patterns:
+            match = re.search(pattern, query_lower, re.IGNORECASE)
+            if match:
+                return match.group(1).upper()
+        return None
+    
+    def search_by_section_number(
+        self, section_num: str, law_filter: Optional[str] = None
+    ) -> Optional[List[Tuple[Document, float]]]:
+        try:
+            results = self.db.get(where={"section": str(section_num)})
+            if not results or not results.get("documents"):
+                return None
+            
+            docs_with_scores = []
+            for i, doc_text in enumerate(results["documents"]):
+                metadata = results.get("metadatas", [{}])[i] if results.get("metadatas") else {}
+                
+                if law_filter and law_filter != "GENERAL":
+                    law_name = metadata.get("law_name", "").lower()
+                    if not self._matches_law_filter(law_name, law_filter):
+                        continue
+                
+                doc = Document(page_content=doc_text, metadata=metadata)
+                docs_with_scores.append((doc, 0.0))
+            
+            return docs_with_scores if docs_with_scores else None
+        except Exception as e:
+            st.warning(f"Metadata search error: {e}")
+            return None
+    
+    def _matches_law_filter(self, law_name: str, law_filter: str) -> bool:
+        filters = {
+            "CNS": "narcotic",
+            "PPC": "penal code",
+            "POLICE": "police rules",
+            "AMLA": "money laundering",
+            "ANF": "anf act",
+            "QES": "shahadat"
+        }
+        return filters.get(law_filter, "").lower() in law_name
+    
+    def enhance_query(self, query: str) -> str:
+        query_lower = query.lower()
+        enhancements = []
+        
+        for term, enhancement in self.query_enhancements.items():
+            if term in query_lower:
+                enhancements.append(enhancement)
+        
+        if enhancements:
+            return f"{query} {' '.join(enhancements)}"
+        return query
+    
+    def semantic_search(
+        self,
+        query: str,
+        k: int = 25,
+        score_threshold: float = 2.0
+    ) -> List[Tuple[Document, float]]:
+        enhanced_query = self.enhance_query(query)
+        results = self.db.similarity_search_with_score(enhanced_query, k=k)
+        return [(doc, score) for doc, score in results if score < score_threshold]
+    
+    def multi_strategy_search(
+        self,
+        query: str,
+        law_context: str,
+        section_num: Optional[str] = None
+    ) -> List[Tuple[Document, float]]:
+        all_results = []
+        seen_keys = set()
+        
+        if section_num:
+            direct_results = self.search_by_section_number(section_num, law_context)
+            if direct_results:
+                for doc, score in direct_results:
+                    key = (doc.metadata.get("law_name"), doc.metadata.get("section"))
+                    if key not in seen_keys:
+                        all_results.append((doc, score))
+                        seen_keys.add(key)
+        
+        semantic_results = self.semantic_search(query, k=30, score_threshold=2.0)
+        for doc, score in semantic_results:
+            key = (doc.metadata.get("law_name"), doc.metadata.get("section"))
+            if key not in seen_keys:
+                all_results.append((doc, score))
+                seen_keys.add(key)
+        
+        if law_context != "GENERAL":
+            all_results = [
+                (doc, score) for doc, score in all_results
+                if self._matches_law_filter(
+                    doc.metadata.get("law_name", "").lower(),
+                    law_context
+                )
+            ]
+        
+        all_results = sorted(all_results, key=lambda x: x[1])
+        return all_results[:20]
 
-print(f"\n✅ Total combined documents: {len(all_documents)}")
 
-# ======================================================================
-# SPLIT INTO CHUNKS
-# ======================================================================
+def format_prompt(context: str, history: str, question: str) -> str:
+    return f"""You are a legal assistant specializing in Pakistani law:
+- Pakistan Penal Code (PPC), 1860
+- Control of Narcotic Substances Act (CNSA), 1997
+- Punjab Police Rules, 1934
+- Anti-Money Laundering Act (AMLA), 2010
+- Anti Narcotics Force Act, 1997
+- Qanun-e-Shahadat Order, 1984
 
-print("\n✂️ Splitting documents into chunks...")
-splitter = RecursiveCharacterTextSplitter(
-    chunk_size=800,
-    chunk_overlap=150,
-    add_start_index=True,
-    separators=["\n\n", "\n", ". ", " ", ""],
-)
-chunks = splitter.split_documents(all_documents)
-print(f"✅ Total chunks created: {len(chunks)}")
+INSTRUCTIONS:
+1. Answer ONLY using provided context
+2. Always cite specific sections with full law names
+3. If information is unavailable, state clearly
+4. Use professional, clear language
+5. Include relevant penalties, definitions, procedures
 
-# ======================================================================
-# RESET OLD CHROMA DB
-# ======================================================================
+CONTEXT:
+{context}
 
-if os.path.exists(CHROMA_PATH):
-    shutil.rmtree(CHROMA_PATH)
-    print("🗑️ Removed old Chroma DB")
+CONVERSATION HISTORY:
+{history}
 
-# ======================================================================
-# EMBEDDING MODEL
-# ======================================================================
+QUESTION:
+{question}
 
-print("\n🤖 Initializing embedding model...")
-embeddings = HuggingFaceEmbeddings(
-    model_name="sentence-transformers/all-mpnet-base-v2",
-    model_kwargs={'device': 'cpu'},
-    encode_kwargs={'normalize_embeddings': True}
-)
+ANSWER:"""
 
-# ======================================================================
-# SAVE TO CHROMA
-# ======================================================================
 
-print("\n💾 Saving to Chroma database...")
-db = Chroma.from_documents(
-    documents=chunks,
-    embedding=embeddings,
-    persist_directory=CHROMA_PATH,
-    collection_name=COLLECTION_NAME
-)
+def main():
+    st.set_page_config(page_title="Legal Chatbot", layout="wide")
+    st.title("Legal Document Chatbot")
+    st.caption("RAG-powered Q&A for Pakistani legal documents")
+    
+    chatbot = LegalChatbot(CHROMA_PATH)
+    
+    with st.sidebar:
+        st.header("About")
+        st.info("""
+        Ask questions about:
+        - Pakistan Penal Code (PPC)
+        - Control of Narcotic Substances Act (CNSA)
+        - Punjab Police Rules, 1934
+        - Anti-Money Laundering Act (AMLA)
+        - Anti Narcotics Force Act
+        - Qanun-e-Shahadat Order
+        """)
+        
+        if st.button("Clear Chat"):
+            st.session_state.messages = []
+            st.rerun()
+    
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
+    
+    for msg in st.session_state.messages:
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"])
+            if "sources" in msg and msg["sources"]:
+                with st.expander("Sources"):
+                    for src in msg["sources"]:
+                        st.text(f"{src['law']} - Section {src['section']}: {src['title']}")
+    
+    if query := st.chat_input("Ask a question"):
+        st.session_state.messages.append({"role": "user", "content": query})
+        with st.chat_message("user"):
+            st.markdown(query)
+        
+        history = "\n".join([
+            f"{'User' if m['role'] == 'user' else 'Assistant'}: {m['content']}"
+            for m in st.session_state.messages[-10:-1]
+        ])
+        
+        with st.spinner("Searching..."):
+            law_context = chatbot.detect_law_context(query)
+            section_num = chatbot.extract_section_number(query)
+            results = chatbot.multi_strategy_search(query, law_context, section_num)
+        
+        context_parts = []
+        sources = []
+        seen = set()
+        
+        for doc, score in results[:12]:
+            sec = doc.metadata.get("section", "Unknown")
+            law = doc.metadata.get("law_name", "Unknown")
+            key = f"{law}:{sec}"
+            
+            if key in seen:
+                continue
+            seen.add(key)
+            
+            title = doc.metadata.get("title", "")
+            context_parts.append(f"{law}\nSection {sec}: {title}\n{doc.page_content}\n")
+            
+            sources.append({
+                "section": sec,
+                "title": title,
+                "law": law,
+                "score": round(score, 3)
+            })
+            
+            if len(sources) >= 8:
+                break
+        
+        context_text = "\n".join(context_parts) if context_parts else "No results found."
+        prompt = format_prompt(context_text, history, query)
+        
+        with st.spinner("Generating response..."):
+            try:
+                response = chatbot.llm.invoke(prompt).content
+            except Exception as e:
+                st.error(f"Error: {e}")
+                response = "Unable to generate response. Please try again."
+        
+        st.session_state.messages.append({
+            "role": "assistant",
+            "content": response,
+            "sources": sources
+        })
+        
+        with st.chat_message("assistant"):
+            st.markdown(response)
+            if sources:
+                with st.expander("Sources"):
+                    for src in sources:
+                        st.text(f"{src['law']} - Section {src['section']}: {src['title']}")
 
-print(f"✅ Saved {len(chunks)} chunks to Chroma DB")
-print(f"📁 Database location: {CHROMA_PATH}")
 
-# ======================================================================
-# VERIFY STORED DATA
-# ======================================================================
-
-print("\n🔍 Verifying stored chunks...")
-db_verify = Chroma(
-    persist_directory=CHROMA_PATH,
-    embedding_function=embeddings,
-    collection_name=COLLECTION_NAME
-)
-
-count = db_verify._collection.count()
-print(f"✅ Verified stored chunks: {count}")
-
-if count > 0:
-    docs = db_verify.get(limit=5)
-    print("\n📚 Sample stored metadata:")
-    for meta in docs['metadatas']:
-        print(f"• {meta.get('law_name')} → Section {meta.get('section')}")
-else:
-    print("⚠️ No chunks found — check file paths or embeddings.")
-
-print("\n🎯 Process complete.")
+if __name__ == "__main__":
+    main()
